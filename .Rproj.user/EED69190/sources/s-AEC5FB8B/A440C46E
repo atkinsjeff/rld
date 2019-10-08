@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1556245670952.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "A440C46E",
+    "lastKnownWriteTime" : 1556248658,
+    "last_content_update" : 1556248658283,
+    "path" : "D:/R_projects/rld/rld_sandbox.R",
+    "project_path" : "rld_sandbox.R",
+    "properties" : {
+        "cursorPosition" : "217,0",
+        "scrollLine" : "184",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
