@@ -13,22 +13,30 @@ library(viridis)
 # import data
 df <- read.csv("./data/rld.csv")
 
+df <- read.csv("./data/D01E_PRE_rld.csv")
+
 # the values are actuall proportion of grid cells from graph that are "filled" they are 4 x 4 so divided by 16 for ratio
 df$rld <- df$rld / 16
-
+()
 max.vai <- 8
-transect.length <- 20
-max.ht <- 30
+transect.length <- 10
+
+
 df$rld[df$rld == 0] <- NA
+
+df %>%
+  filter(y == 21) %>%
+  data.frame() -> df.21
+
 
 x11()
 # vai.label =  expression(paste(VAI~(m^2 ~m^-2)))
-p <- ggplot2::ggplot(df, ggplot2::aes(x = xbin, y = zbin))+
+ggplot2::ggplot(df.21, ggplot2::aes(x = x, y = z))+
   ggplot2::geom_tile(ggplot2::aes(fill = rld))+
   scale_fill_viridis(option = "D",
                      na.value = "white",
                      direction = -1,
-                     limits=c(0, 1))+
+                     )+
   # ggplot2::scale_fill_gradient(low="purple", high="yellow",
   #                              na.value = "white",
   #                              limits=c(0, max.vai),
