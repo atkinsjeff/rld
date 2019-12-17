@@ -9,24 +9,119 @@ require(purrr)  # for map(), reduce()
 library(tidyverse)
 library(ggplot2)
 library(viridis)
-
+library(minpack.lm)
+library(arm)
 # import data
-df <- read.csv("./data/rld.csv")
+# <- read.csv("./data/rld.csv")
 
-df <- read.csv("./data/D01E_PRE_rld.csv")
+df <- read.csv("./data/D02W_POST_rld.csv")
 
 # the values are actuall proportion of grid cells from graph that are "filled" they are 4 x 4 so divided by 16 for ratio
-df$rld <- df$rld / 16
-()
-max.vai <- 8
-transect.length <- 10
+# df$rld <- df$rld / 16
+# ()
+# max.vai <- 8
+# transect.length <- 10
 
 
 df$rld[df$rld == 0] <- NA
 
+################
+
+#split into list of data frames
+df.list <- split(df, list(df$x, df$y))
+
+
+### trying with tidy
+
 df %>%
-  filter(y == 21) %>%
-  data.frame() -> df.21
+  mutate(x = as.factor(x)) %>%
+  mutate(y == as.factor(y)) %>%
+  group_by(x, y) %>%
+  
+  
+df.list <- lapply(df.list, function(x){
+  for (i in seq_along(x)) {
+      # x$biomass_a[j] = x$biomass_b_kg_new[j - 1]
+      # x$biomass_b_kg_new[j] = (x$biomass_a[j] * x$RGR_obs_est[j]) + x$biomass_a[j]
+      # model for beta
+      z <- (x[i]$z[i] * -1)
+      rld <- x[i]$rld
+      
+      #nls model
+      m <- nls(y ~ -(beta^rld), start = list(beta = 1))
+      
+      # add to date frame
+      x$model.coef[i] <- as.numeric(coef(m))
+      x$model.se[i] <-summary(m)$coefficients[, 2]
+    }
+    return(x)
+  })
+
+df2 <- plyr::ldply(df.list, data.frame)
+
+df2$x <- as.factor(df2$x)
+df2$y <- as.factor(df2$y)
+
+df2 %>%
+  dplyr::select(x, y, model.coef, model.se) %>%
+  dplyr::group_by(x, y) %>%
+  data.frame() -> df.model.output
+
+
+#####
+
+res <- mapply(function(x,y){
+  
+  nls(y~(a/b)*(1-exp(-b*x)),
+      start=list(a=1, b=0.1),
+      trace= TRUE, data=data.frame(x, y))
+},L1,L2, SIMPLIFY=FALSE)
+
+
+################
+
+df %>%
+  filter(y == 25) %>%
+  filter(x == 25) %>%
+  data.frame() -> g
+  
+g$z <- g$z * -1
+
+# model fit
+rld <- g$rld
+y <- g$z
+ 
+m <- nls(y ~ -(beta^rld), start = list(beta = 1))
+
+# from the model
+plot( rld, predict(m))
+
+# now I want to add those predicted values to the dataset
+model.coef <- as.numeric(coef(m))
+model.se <-summary(m)$coefficients[, 2]
+
+
+g$predlm <- predict(m)
+
+# plotting
+x11()
+ggplot(g, aes(x = rld, y = z))+
+  geom_point()+
+  # geom_smooth(method = "nls",
+  #             formula = y ~  -(beta^x),
+  #             method.args = list(start = list(beta = 1)),
+  #             se = FALSE,
+  #             color = "blue")+
+  #stat_function(fun = function(x)  -1^x)
+  geom_smooth(method = "nls",
+              formula = y ~  -(beta^x),
+              method.args = list(start = list(beta = 1)),
+              se = FALSE,
+              color = "blue")+
+  geom_smooth(color = "red")+
+  geom_line(aes(y = predlm), size = 1, color = "green")
+
+
 
 
 x11()
@@ -55,7 +150,7 @@ ggplot2::ggplot(df.21, ggplot2::aes(x = x, y = z))+
                  axis.ticks.x = element_blank())+
   theme(legend.position = "top")+
   # ggplot2::xlim(10,100)+
-  scale_y_reverse( lim=c(50,0))+
+  scale_y_reverse( lim=c(1,0))+
   ggplot2::xlab("Distance along transect (10 cm)")+
   ggplot2::ylab("Depth below ground (10 cm)")+
   ggplot2::theme(plot.title = ggplot2::element_text(lineheight=.8, face="bold"))
@@ -65,9 +160,9 @@ p
 
 #### 
 
-df.z <- aggregate(rld ~ zbin, data = df, FUN = mean )
+df.z <- aggregate(rld ~ z, data = df.21, FUN = mean )
 
-pavd <- ggplot2::ggplot(df.z, ggplot2::aes(y = rld, x = zbin))+
+pavd <- ggplot2::ggplot(df.z, ggplot2::aes(y = rld, x = z))+
   #geom_bar(stat = "identity", color = "light grey")+
   # geom_ribbon(aes(ymin = df.z.vai$vai - df.z.vai$sd.vai, ymax = df.z.vai$vai + df.z.vai$sd.vai),
   #             alpha=0.2) +
@@ -85,8 +180,8 @@ pavd <- ggplot2::ggplot(df.z, ggplot2::aes(y = rld, x = zbin))+
                  axis.ticks.y = element_blank(),
                  axis.ticks.x = element_blank(),
                  legend.title=element_blank())+
-  ggplot2::coord_flip(xlim = c(10, 50), ylim = c(0, 1), expand = TRUE)+
-  scale_x_reverse( lim=c(50,0))+
+  ggplot2::coord_flip(xlim = c(0, 1), ylim = c(0, 70000), expand = TRUE)+
+  scale_x_reverse( lim=c(1,0))+
   scale_colour_manual(name="legend", values=c("blue", "red"))+
   #ggplot2::ylab("Plant Area Volume Density (PAVD)")+
   ylab("RLD")+
@@ -99,9 +194,14 @@ pavd
 #### root complexity measures
 #mean column leaf height that is the "heightBin" from Matlab code
 
-m <- df
+m <- df.21
 # put zeros back
 m[is.na(m)] <- 0
+
+# Rename a column in R
+colnames(m)[colnames(m)=="x"] <- "xbin"
+colnames(m)[colnames(m)=="z"] <- "zbin"
+
 
 m$rld.z <- m$rld * (m$zbin +0.5)
 
